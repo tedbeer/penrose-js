@@ -1,4 +1,4 @@
-const randint = (min, max) => min + parseInt(rand() * (max - min));
+const randHex = (min, max) => `#${Number(min + parseInt(rand() * (max - min))).toString(16)}`;
 const line = (first, ...arg) => {
 	const points = arg.map(p => `l${p.real},${p.imag}`).join(' ');
 	return `m${first.real},${first.imag} ${points}z`;
@@ -308,86 +308,89 @@ class Penrosethis {
     make_tiling() {
         /* Make the Penrose tiling by inflating ngen times. */
 
-        for gen in range(this.ngen):
-            this.inflate()
-        if this.config['draw-rhombuses']:
-            this.remove_dupes()
-        if this.config['reflect-x']:
-            this.add_conjugate_elements()
-            this.remove_dupes()
+        for (let i = this.ngen; i > 0; i--) {
+        	this.inflate();
+        }
+        if (this.config['draw-rhombuses']) this.remove_dupes();
+        if (this.config['reflect-x']) {
+            this.add_conjugate_elements();
+            this.remove_dupes();
+        }
 
         // Rotate the figure anti-clockwise by theta radians.
-        theta = this.config['rotate']
-        if theta:
-            this.rotate(theta)
+        theta = this.config['rotate'];
+        if (theta) this.rotate(theta);
 
         // Flip the image about the y-axis (note this occurs _after_ any
         // rotation.
-        if this.config['flip-y']:
-            this.flip_y()
+        if (this.config['flip-y']) this.flip_y();
 
         // Flip the image about the x-axis (note this occurs _after_ any
         // rotation and after any flip about the y-axis.
-        if this.config['flip-x']:
-            this.flip_x()
+        if (this.config['flip-x']) this.flip_x();
     }
 
     get_tile_colour(e) {
         /* Return a HTML-style colour string for the tile. */
 
-        if this.config['random-tile-colours']:
-            // Return a random colour as '#xxx'
-            return '#' + hex(randint(0,0xfff))[2:]
+        // Return a random colour as '#xxx'
+        if (this.config['random-tile-colours']) return randHex(0, 0xfff);
 
         // Return the colour string, or call the colour function as appropriate
-        if isinstance(e, BtileL):
-            if hasattr(this.config['Ltile-colour'], '__call__'):
-                return this.config['Ltile-colour'](e)
-            return this.config['Ltile-colour']
+        if (e instanceof BtileL) {
+            if (this.config['Ltile-colour'] instanceof Function) {
+                return this.config['Ltile-colour'](e);
+            } else {
+                return this.config['Ltile-colour'];
+            }
+        }
 
-        if hasattr(this.config['Stile-colour'], '__call__'):
-                return this.config['Stile-colour'](e)
-        return this.config['Stile-colour']
+        if (this.config['Stile-colour'] instanceof Function) {
+        	return this.config['Stile-colour'](e);
+        } else {
+        	return this.config['Stile-colour'];
+        }
     }
 
     make_svg() {
         /* Make and return the SVG for the tiling as a str. */
 
-        xmin = ymin = -this.scale * this.config['margin']
-        width =  height = 2*this.scale * this.config['margin']
-        viewbox ='{} {} {} {}'.format(xmin, ymin, width, height)
-        svg = ['<?xml version="1.0" encoding="utf-8"?>',
-               '<svg width="{}" height="{}" viewBox="{}"'
-               ' preserveAspectRatio="xMidYMid meet" version="1.1"'
-               ' baseProfile="full" xmlns="http://www.w3.org/2000/svg">'
-                .format(this.config['width'], this.config['height'], viewbox)]
+        const xmin = -this.scale * this.config['margin'];
+        const ymin = xmin;
+        const width = 2*this.scale * this.config['margin'];
+        const height = width;
+        const viewbox =`${xmin} ${ymin} ${width} ${height}`;
+        const svg = ['<?xml version="1.0" encoding="utf-8"?>',
+               `<svg width="${this.config['width']}" height="${this.config['height']}" viewBox="${viewbox}"`,
+                ' preserveAspectRatio="xMidYMid meet" version="1.1"',
+                ' baseProfile="full" xmlns="http://www.w3.org/2000/svg">'];
+
         // The tiles' stroke widths scale with ngen
-        stroke_width = str(psi**this.ngen * this.scale *
-                                            this.config['base-stroke-width'])
-        svg.append('<g style="stroke:{}; stroke-width: {};'
-                   ' stroke-linejoin: round;">'
-                .format(this.config['stroke-colour'], stroke_width))
-        draw_rhombuses = this.config['draw-rhombuses']
-        for e in this.elements:
-            if this.config['draw-tiles']:
-                svg.append('<path fill="{}" fill-opacity="{}" d="{}"/>'
-                        .format(this.get_tile_colour(e),
-                                this.config['tile-opacity'],
-                                e.path(rhombus=draw_rhombuses)))
-            if this.config['draw-arcs']:
-                arc1_d, arc2_d = e.arcs(half_arc=not draw_rhombuses)
-                svg.append('<path fill="none" stroke="{}" d="{}"/>'
-                                .format(this.config['Aarc-colour'], arc1_d))
-                svg.append('<path fill="none" stroke="{}" d="{}"/>'
-                                .format(this.config['Carc-colour'], arc2_d))
-        svg.append('</g>\n</svg>')
-        return '\n'.join(svg)
+        const stroke_width = String(psi**this.ngen * this.scale * this.config['base-stroke-width']);
+        svg.push(`<g style="stroke:${this.config['stroke-colour']};`,
+        ` stroke-width: ${stroke_width}; stroke-linejoin: round;">`);
+        const draw_rhombuses = this.config['draw-rhombuses'];
+        this.elements.forEach(e => {
+            if (this.config['draw-tiles'])
+                svg.push(`<path fill="${this.get_tile_colour(e)}"`,
+                	` fill-opacity="${this.config['tile-opacity']}"`,
+                	` d="${e.path(draw_rhombuses)}"/>`);
+            if (this.config['draw-arcs']) {
+                [arc1_d, arc2_d] = e.arcs(!draw_rhombuses);
+                svg.push(
+                	`<path fill="none" stroke="${this.config['Aarc-colour']}" d="${arc1_d}" />`,
+                	`<path fill="none" stroke="${this.config['Carc-colour']}" d="${arc2_d}" />`
+                );
+            }
+        });
+        svg.push('</g>\n</svg>')
+        return svg.join('\n');
     }
 
-    write_svg(filename) {
-        /* Make and write the SVG for the tiling to filename. */
-        svg = this.make_svg()
-        with open(filename, 'w') as fo:
-            fo.write(svg)
-    }
+    // write_svg(filename) {
+    //     /* Make and write the SVG for the tiling to filename. */
+    //     svg = this.make_svg()
+    //     with open(filename, 'w') as fo:
+    //         fo.write(svg)
+    // }
 }
