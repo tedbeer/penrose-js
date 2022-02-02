@@ -1,10 +1,67 @@
 const randint = (min, max) => min + parseInt(rand() * (max - min));
+const line = (first, ...arg) => {
+	const points = arg.map(p => `l${p.real},${p.imag}`).join(' ');
+	return `m${first.real},${first.imag} ${points}z`;
+}
+const arc = (start, r, end) => `M ${start.real} ${start.imag} A ${r} ${r} 0 0 0 ${end.real} ${end.imag}`;
+
 // A small tolerance for comparing floats for equality
 const TOL = 1.e-5;
 // psi = 1/phi where phi is the Golden ratio, sqrt(5)+1)/2
 const psi = (Math.sqrt(5) - 1) / 2
 // psi**2 = 1 - psi
 const psi2 = 1 - psi
+
+class Complex {
+	constructor(real, imag) {
+		this.real = real;
+		this.imag = imag;
+	}
+
+	plus(b, c) {
+		if (Number.isFinite(c)) {
+			return new Complex(this.real + b, this.imag + c);
+		} else {
+			return new Complex(this.real + b.real, this.imag + b.imag);
+		}
+	}
+
+	minus(b) {
+		return this.plus(-b.real, -b.imag);
+	}
+
+	neg() {
+		return new Complex(-this.real, -this.imag);
+	}
+
+	div(c) {
+		return new Complex(this.real / c, this.imag / c);
+	}
+
+	mult(c) {
+		if (Number.isFinite(c)) return new Complex(this.real * c, this.imag * c);
+		return new Complex(
+			this.real * c.real - this.imag * c.imag,
+			this.real * c.imag + this.imag * c.real
+		);
+	}
+
+	cross(b) {
+		return this.real * b.imag - this.imag * b.real;
+	}
+
+	middle(b) {
+		return this.plus(b).div(2);
+	}
+
+	abs() {
+		return Math.sqrt(this.real * this.real + this.imag * this.imag);
+	}
+
+	conjugate() {
+		return new Complex(this.real, -this.imag);
+	}
+}
 
 class RobinsonTriangle {
     /*
@@ -25,7 +82,7 @@ class RobinsonTriangle {
         Return the position of the centre of the rhombus formed from two
         triangles joined by their bases.
         */
-        return (this.A + this.C) / 2;
+        return this.A.middle(this.C);
     }
 
     path(rhombus = true) {
@@ -34,15 +91,10 @@ class RobinsonTriangle {
         by this triangle and its mirror image joined along their bases. If
         rhombus = false, the path for the triangle itself is returned instead.
         */
-        const AB = this.B - this.A
-        const BC = this.C - this.B
-        const xy = v => (v.real, v.imag);
-        if (rhombus) {
-            return 'm{},{} l{},{} l{},{} l{},{}z'.format(*xy(this.A) + xy(AB)
-                                                        + xy(BC) + xy(-AB))
-        }
-        return 'm{},{} l{},{} l{},{}z'.format(*xy(this.A) + xy(AB)
-                                                        + xy(BC))
+        const AB = this.B.minus(this.A);
+        const BC = this.C.minus(this.B);
+        if (rhombus) return line(this.A, AB, BC, AB.neg());
+        return line(this.A, AB, BC);
     }
 
     get_arc_d(U, V, W, half_arc = false) {
@@ -53,24 +105,24 @@ class RobinsonTriangle {
         is False, the arc is drawn for the corresponding vertices of a
         Robinson triangle.
         */
-        start = (U + V) / 2
-        end = (U + W) / 2
+        let start = U.middle(V);
+        let end = U.middle(W);
         // arc radius
-        r = abs((V - U) / 2)
+        const r = V.minus(U).div(2).abs();
 
-        if half_arc:
+        if (half_arc) {
             // Find the endpoint of the "half-arc" terminating on the triangle
             // base
-            UN = V + W - 2*U
-            end = U + r * UN / abs(UN)
+            const UN = V.plus(W).minus(U.mult(2));
+            end = U.add(UN.mult(r / UN.abs()));
+        }
 
         // ensure we draw the arc for the angular component < 180 deg
-        cross = lambda u, v: u.real*v.imag - u.imag*v.real
-        US, UE = start - U, end - U
-        if cross(US, UE) > 0:
-            start, end = end, start
-        return 'M {} {} A {} {} 0 0 0 {} {}'.format(start.real, start.imag,
-                                                    r, r, end.real, end.imag)
+        const US = start.minus(U);
+        const UE = end.minus(U);
+        if (US.cross(UE) > 0) [start, end] = [end, start];
+
+        return arc(start, r, end);
     }
 
     arcs(half_arc = false) {
@@ -82,10 +134,10 @@ class RobinsonTriangle {
 
         */
 
-        D = this.A - this.B + this.C
-        arc1_d = this.get_arc_d(this.A, this.B, D, half_arc)
-        arc2_d = this.get_arc_d(this.C, this.B, D, half_arc)
-        return arc1_d, arc2_d
+        const D = this.A.minus(this.B).plus(this.C);
+        const arc1_d = this.get_arc_d(this.A, this.B, D, half_arc);
+        const arc2_d = this.get_arc_d(this.C, this.B, D, half_arc);
+        return [arc1_d, arc2_d];
     }
 
     conjugate() {
@@ -94,8 +146,7 @@ class RobinsonTriangle {
         x-axis. Since the vertices are stored as complex numbers, we simply
         need the complex conjugate values of their values.
         */
-        return this.__class__(this.A.conjugate(), this.B.conjugate(),
-                              this.C.conjugate())
+        return new RobinsonTriangle(this.A.conjugate(), this.B.conjugate(), this.C.conjugate());
     }
 }
 
@@ -115,13 +166,13 @@ class BtileL extends RobinsonTriangle {
         */
 
         // D and E divide sides AC and AB respectively
-        D = psi2 * this.A + psi * this.C
-        E = psi2 * this.A + psi * this.B
+        const D = this.A.mult(psi2).plus(this.C.mult(psi));
+        const E = this.A.mult(psi2).plus(this.B.mult(psi));
         // Take care to order the vertices here so as to get the right
         // orientation for the resulting triangles.
-        return [BtileL(D, E, this.A),
-                BtileS(E, D, this.B),
-                BtileL(this.C, D, this.B)]
+        return [new BtileL(D, E, this.A),
+                new BtileS(E, D, this.B),
+                new BtileL(this.C, D, this.B)]
     }
 }
 
@@ -138,18 +189,16 @@ class BtileS extends RobinsonTriangle {
         /*
         "Inflate" this tile, returning the two resulting Robinson triangles
         in a list.
-
         */
-        const D = psi * this.A + psi2 * this.B;
-        return [BtileS(D, this.C, this.A),
-                BtileL(this.C, D, this.B)]
+        const D = this.A.mult(psi).plus(this.B.mult(psi2));
+        return [new BtileS(D, this.C, this.A), new BtileL(this.C, D, this.B)];
      }
 }
 
 class Penrosethis {
     /* A class representing the P3 Penrose tiling. */
 
-    constructor(scale=200, ngen=4, config={}):
+    constructor(scale = 200, ngen = 4, config = {}) {
         /*
         Initialise the PenroseP3 instance with a scale determining the size
         of the final image and the number of generations, ngen, to inflate
@@ -157,45 +206,44 @@ class Penrosethis {
         key, value pairs of the optional config dictionary.
         */
 
-        this.scale = scale
-        this.ngen = ngen
+        this.scale = scale;
+        this.ngen = ngen;
 
         // Default configuration
-        this.config = {'width': '100%', 'height': '100%',
-                       'stroke-colour': '#fff',
-                       'base-stroke-width': 0.05,
-                       'margin': 1.05,
-                       'tile-opacity': 0.6,
-                       'random-tile-colours': False,
-                       'Stile-colour': '#08f',
-                       'Ltile-colour': '#0035f3',
-                       'Aarc-colour': '#f00',
-                       'Carc-colour': '#00f',
-                       'draw-tiles': True,
-                       'draw-arcs': False,
-                       'reflect-x': True,
-                       'draw-rhombuses': True,
-                       'rotate': 0,
-                       'flip-y': False, 'flip-x': False,
-                      }
-        this.config.update(config)
+        this.config = {
+			'width': '100%', 'height': '100%',
+			'stroke-colour': '#fff',
+			'base-stroke-width': 0.05,
+			'margin': 1.05,
+			'tile-opacity': 0.6,
+			'random-tile-colours': false,
+			'Stile-colour': '#08f',
+			'Ltile-colour': '#0035f3',
+			'Aarc-colour': '#f00',
+			'Carc-colour': '#00f',
+			'draw-tiles': true,
+			'draw-arcs': false,
+			'reflect-x': true,
+			'draw-rhombuses': true,
+			'rotate': 0,
+			'flip-y': false, 'flip-x': false,
+			...config
+		};
         // And ensure width, height values are strings for the SVG
-        this.config['width'] = str(this.config['width'])
-        this.config['height'] = str(this.config['height'])
-
-        this.elements = []
+        this.config['width'] = String(this.config['width']);
+        this.config['height'] = String(this.config['height']);
+        this.elements = [];
     }
 
     set_initial_tiles(tiles) {
-        this.elements = tiles
+        this.elements = tiles;
     }
 
     inflate() {
         /* "Inflate" each triangle in the tiling ensemble.*/
-        new_elements = []
-        for element in this.elements:
-            new_elements.extend(element.inflate())
-        this.elements = new_elements
+        const new_elements = [];
+        this.elements.forEach(element => new_elements.push(...element.inflate()));
+        this.elements = new_elements;
     }
 
     remove_dupes() {
@@ -206,46 +254,55 @@ class Penrosethis {
 
         // Triangles give rise to identical rhombuses if these rhombuses have
         // the same centre.
-        selements = sorted(this.elements, key=lambda e: (e.centre().real,
-                                                         e.centre().imag))
-        this.elements = [selements[0]]
-        for i, element in enumerate(selements[1:], start=1):
-            if abs(element.centre() - selements[i-1].centre()) > TOL:
-                this.elements.append(element)
+        this.elements = this.elements.map((element, index) => {
+        	index, center: element.centre(), element
+        }).sort((a, b) => {
+        	if (a.center.real - b.center.real < TOL && a.center.imag - b.center.imag < TOL) return 0;
+        	if (a.center.real - b.center.real < TOL) return a.center.imag - b.center.imag;
+        	return a.center.real - b.center.real;
+        }).map((item, index, arr) =>
+        	(index > 0 && item.center.minus(arr[index - 1].center).abs() < TOL) ? null : item.element
+        ).filter(Boolean);
+
+        // const selements = sorted(self.elements, key=lambda e: (e.centre().real, e.centre().imag))
+        // this.elements = [selements[0]];
+        // for i, element in enumerate(selements[1:], start=1):
+        //     if abs(element.centre() - selements[i-1].centre()) > TOL:
+        //         this.elements.append(element)
     }
 
     add_conjugate_elements() {
         /* Extend the tiling by reflection about the x-axis. */
-
-        this.elements.extend([e.conjugate() for e in this.elements])
+        this.elements.push(...this.elements.map(e => e.conjugate()));
     }
 
     rotate(theta) {
         /* Rotate the figure anti-clockwise by theta radians.*/
 
-        rot = Math.cos(theta) + 1j * Math.sin(theta)
-        for e in this.elements:
-            e.A *= rot
-            e.B *= rot
-            e.C *= rot
+        const rot = new Complex(Math.cos(theta), Math.sin(theta));
+        this.elements.forEach(e => {
+            e.A = rot.mult(e.A);
+            e.B = rot.mult(e.B);
+            e.C = rot.mult(e.C);
+        });
     }
 
     flip_y() {
         /* Flip the figure about the y-axis. */
-
-        for e in this.elements:
-            e.A = complex(-e.A.real, e.A.imag)
-            e.B = complex(-e.B.real, e.B.imag)
-            e.C = complex(-e.C.real, e.C.imag)
+        this.elements.forEach(e => {
+            e.A = new Complex(-e.A.real, e.A.imag);
+            e.B = new Complex(-e.B.real, e.B.imag);
+            e.C = new Complex(-e.C.real, e.C.imag);
+        });
     }
 
     flip_x() {
         /* Flip the figure about the x-axis. */
-
-        for e in this.elements:
-            e.A = e.A.conjugate()
-            e.B = e.B.conjugate()
-            e.C = e.C.conjugate()
+        this.elements.forEach(e => {
+            e.A = e.A.conjugate();
+            e.B = e.B.conjugate();
+            e.C = e.C.conjugate();
+        });
     }
 
     make_tiling() {
