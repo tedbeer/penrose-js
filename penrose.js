@@ -1,33 +1,30 @@
 const randHex = (min, max) => `#${Number(min + parseInt(rand() * (max - min))).toString(16)}`;
 const line = (first, ...arg) => {
-	const points = arg.map(p => `l${p.real},${p.imag}`).join(' ');
-	return `m${first.real},${first.imag} ${points}z`;
+	const points = arg.map(p => `l${p.real.toFixed(6)},${p.imag.toFixed(6)}`).join(' ');
+	return `m${first.real.toFixed(6)},${first.imag.toFixed(6)} ${points}z`;
 }
-const arc = (start, r, end) => `M ${start.real} ${start.imag} A ${r} ${r} 0 0 0 ${end.real} ${end.imag}`;
+const arc = (start, r, end) => `M ${start.real.toFixed(6)} ${start.imag.toFixed(6)}\
+ A ${r} ${r} 0 0 0 ${end.real.toFixed(6)} ${end.imag.toFixed(6)}`;
 
 // A small tolerance for comparing floats for equality
 const TOL = 1.e-5;
 // psi = 1/phi where phi is the Golden ratio, sqrt(5)+1)/2
-const psi = (Math.sqrt(5) - 1) / 2
+export const psi = (Math.sqrt(5) - 1) / 2;
 // psi**2 = 1 - psi
-const psi2 = 1 - psi
+export const psi2 = 1 - psi;
 
-class Complex {
+export class Complex {
 	constructor(real, imag) {
 		this.real = real;
 		this.imag = imag;
 	}
 
-	plus(b, c) {
-		if (Number.isFinite(c)) {
-			return new Complex(this.real + b, this.imag + c);
-		} else {
-			return new Complex(this.real + b.real, this.imag + b.imag);
-		}
+	plus(b) {
+		return new Complex(this.real + b.real, this.imag + b.imag);
 	}
 
 	minus(b) {
-		return this.plus(-b.real, -b.imag);
+		return new Complex(this.real - b.real, this.imag - b.imag);
 	}
 
 	neg() {
@@ -61,9 +58,13 @@ class Complex {
 	conjugate() {
 		return new Complex(this.real, -this.imag);
 	}
-}
 
-class RobinsonTriangle {
+	toString() {
+		return `(${this.real.toFixed(6)}, ${this.imag.toFixed(6)})`;
+	}
+};
+
+export class RobinsonTriangle {
     /*
     A class representing a Robinson triangle and the rhombus formed from it.
     */
@@ -146,11 +147,15 @@ class RobinsonTriangle {
         x-axis. Since the vertices are stored as complex numbers, we simply
         need the complex conjugate values of their values.
         */
-        return new RobinsonTriangle(this.A.conjugate(), this.B.conjugate(), this.C.conjugate());
+        return new this.constructor(this.A.conjugate(), this.B.conjugate(), this.C.conjugate());
     }
-}
 
-class BtileL extends RobinsonTriangle {
+	toString() {
+		return `{ A:${this.A} , B:${this.B}, C: ${this.C} }`;
+	}
+};
+
+export class BtileL extends RobinsonTriangle {
     /*
     A class representing a "B_L" Penrose tile in the P3 tiling scheme as
     a "large" Robinson triangle (sides in ratio 1:1:phi).
@@ -164,7 +169,6 @@ class BtileL extends RobinsonTriangle {
         "Inflate" this tile, returning the three resulting Robinson triangles
         in a list.
         */
-
         // D and E divide sides AC and AB respectively
         const D = this.A.mult(psi2).plus(this.C.mult(psi));
         const E = this.A.mult(psi2).plus(this.B.mult(psi));
@@ -172,11 +176,15 @@ class BtileL extends RobinsonTriangle {
         // orientation for the resulting triangles.
         return [new BtileL(D, E, this.A),
                 new BtileS(E, D, this.B),
-                new BtileL(this.C, D, this.B)]
+                new BtileL(this.C, D, this.B)];
     }
-}
 
-class BtileS extends RobinsonTriangle {
+    toString() {
+    	return `BtileL: ${super.toString()}`;
+    }
+};
+
+export class BtileS extends RobinsonTriangle {
     /*
     A class representing a "B_S" Penrose tile in the P3 tiling scheme as
     a "small" Robinson triangle (sides in ratio 1:1:psi).
@@ -192,10 +200,14 @@ class BtileS extends RobinsonTriangle {
         */
         const D = this.A.mult(psi).plus(this.B.mult(psi2));
         return [new BtileS(D, this.C, this.A), new BtileL(this.C, D, this.B)];
-     }
-}
+    }
 
-class Penrosethis {
+    toString() {
+    	return `BtileS: ${super.toString()}`;
+    }
+};
+
+export class PenroseP3 {
     /* A class representing the P3 Penrose tiling. */
 
     constructor(scale = 200, ngen = 4, config = {}) {
@@ -254,21 +266,15 @@ class Penrosethis {
 
         // Triangles give rise to identical rhombuses if these rhombuses have
         // the same centre.
-        this.elements = this.elements.map((element, index) => {
+        this.elements = this.elements.map((element, index) => ({
         	index, center: element.centre(), element
-        }).sort((a, b) => {
-        	if (a.center.real - b.center.real < TOL && a.center.imag - b.center.imag < TOL) return 0;
-        	if (a.center.real - b.center.real < TOL) return a.center.imag - b.center.imag;
+        })).sort((a, b) => {
+        	if (Math.abs(a.center.real - b.center.real) < TOL && Math.abs(a.center.imag - b.center.imag) < TOL) return 0;
+        	if ( Math.abs(a.center.real - b.center.real) < TOL) return a.center.imag - b.center.imag;
         	return a.center.real - b.center.real;
         }).map((item, index, arr) =>
-        	(index > 0 && item.center.minus(arr[index - 1].center).abs() < TOL) ? null : item.element
+        	((index > 0 && item.center.minus(arr[index - 1].center).abs() < TOL) ? null : item.element)
         ).filter(Boolean);
-
-        // const selements = sorted(self.elements, key=lambda e: (e.centre().real, e.centre().imag))
-        // this.elements = [selements[0]];
-        // for i, element in enumerate(selements[1:], start=1):
-        //     if abs(element.centre() - selements[i-1].centre()) > TOL:
-        //         this.elements.append(element)
     }
 
     add_conjugate_elements() {
@@ -278,7 +284,6 @@ class Penrosethis {
 
     rotate(theta) {
         /* Rotate the figure anti-clockwise by theta radians.*/
-
         const rot = new Complex(Math.cos(theta), Math.sin(theta));
         this.elements.forEach(e => {
             e.A = rot.mult(e.A);
@@ -307,7 +312,6 @@ class Penrosethis {
 
     make_tiling() {
         /* Make the Penrose tiling by inflating ngen times. */
-
         for (let i = this.ngen; i > 0; i--) {
         	this.inflate();
         }
@@ -316,9 +320,8 @@ class Penrosethis {
             this.add_conjugate_elements();
             this.remove_dupes();
         }
-
         // Rotate the figure anti-clockwise by theta radians.
-        theta = this.config['rotate'];
+        const theta = this.config['rotate'];
         if (theta) this.rotate(theta);
 
         // Flip the image about the y-axis (note this occurs _after_ any
@@ -360,21 +363,21 @@ class Penrosethis {
         const width = 2*this.scale * this.config['margin'];
         const height = width;
         const viewbox =`${xmin} ${ymin} ${width} ${height}`;
-        const svg = ['<?xml version="1.0" encoding="utf-8"?>',
+        const svg = [// '<?xml version="1.0" encoding="utf-8"?>',
                `<svg width="${this.config['width']}" height="${this.config['height']}" viewBox="${viewbox}"`,
                 ' preserveAspectRatio="xMidYMid meet" version="1.1"',
                 ' baseProfile="full" xmlns="http://www.w3.org/2000/svg">'];
 
         // The tiles' stroke widths scale with ngen
-        const stroke_width = String(psi**this.ngen * this.scale * this.config['base-stroke-width']);
-        svg.push(`<g style="stroke:${this.config['stroke-colour']};`,
-        ` stroke-width: ${stroke_width}; stroke-linejoin: round;">`);
+        const stroke_width = Number(psi**this.ngen * this.scale * this.config['base-stroke-width']).toFixed(6);
+        svg.push(`<g style="stroke:${this.config['stroke-colour']};\
+stroke-width: ${stroke_width}; stroke-linejoin: round;">`);
         const draw_rhombuses = this.config['draw-rhombuses'];
         this.elements.forEach(e => {
             if (this.config['draw-tiles'])
-                svg.push(`<path fill="${this.get_tile_colour(e)}"`,
-                	` fill-opacity="${this.config['tile-opacity']}"`,
-                	` d="${e.path(draw_rhombuses)}"/>`);
+                svg.push(`<path fill="${this.get_tile_colour(e)}"\
+ fill-opacity="${this.config['tile-opacity']}"\
+ d="${e.path(draw_rhombuses)}"/>`);
             if (this.config['draw-arcs']) {
                 [arc1_d, arc2_d] = e.arcs(!draw_rhombuses);
                 svg.push(
@@ -393,4 +396,4 @@ class Penrosethis {
     //     with open(filename, 'w') as fo:
     //         fo.write(svg)
     // }
-}
+};
