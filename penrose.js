@@ -32,11 +32,17 @@ export class Complex {
 	}
 
 	div(c) {
-		return new Complex(this.real / c, this.imag / c);
+		if (Number.isFinite(c)) return new Complex(this.real / c, this.imag / c);
+
+		return new Complex(
+			(this.real * c.real + this.imag * c.imag)/(c.real * c.real + c.imag * c.imag),
+			(this.imag * c.real - this.real * c.imag)/(c.real * c.real + c.imag * c.imag)
+		);
 	}
 
 	mult(c) {
 		if (Number.isFinite(c)) return new Complex(this.real * c, this.imag * c);
+
 		return new Complex(
 			this.real * c.real - this.imag * c.imag,
 			this.real * c.imag + this.imag * c.real
@@ -73,9 +79,9 @@ export class RobinsonTriangle {
         Initialize the triangle with the ordered vertices. A and C are the
         vertices at the equal base angles; B is at the vertex angle.
         */
-        this.A = A;
-        this.B = B;
-        this.C = C;
+        this.A = Number.isFinite(A) ? new Complex(A, 0) : A;
+        this.B = Number.isFinite(B) ? new Complex(B, 0) : B;
+        this.C = Number.isFinite(C) ? new Complex(C, 0) : C;
     }
 
     centre() {
