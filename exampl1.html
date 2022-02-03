@@ -1,0 +1,43 @@
+<!doctype html>
+<html class="no-js" lang="">
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="x-ua-compatible" content="ie=edge">
+		<title>Penrose tiles #1</title>
+		<meta name="description" content="Penrose tiles example 1">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+
+		<link rel="manifest" href="site.webmanifest">
+		<link rel="apple-touch-icon" href="icon.png">
+		<!-- Place favicon.ico in the root directory -->
+
+		<!-- <link rel="stylesheet" href="css/normalize.css">
+		<link rel="stylesheet" href="css/main.css"> -->
+		<!-- <script src="./penrose.js" async defer></script> -->
+	</head>
+	<body>
+		<div id="image"></div>
+		<script type="module">
+			import { Complex, PenroseP3, BtileL, psi } from './penrose.js';
+
+			(function(el) {
+				// A simple example starting with a BL tile
+
+				const scale = 100;
+				const tiling = new PenroseP3(scale, 5);
+
+				const theta = 2 * Math.PI / 5;
+				const rot = new Complex( Math.cos(theta), Math.sin(theta));
+				const A = new Complex(-scale/2, 0);
+				const B = rot.mult(scale/2);
+				const C = new Complex(scale/2 / psi, 0);
+
+				tiling.set_initial_tiles([new BtileL(A, B, C)]);
+				tiling.make_tiling();
+				const img = tiling.make_svg();
+				// console.log(img);
+				el.innerHTML = img;
+			})(document.getElementById('image'));
+		</script>
+	</body>
+</html>
