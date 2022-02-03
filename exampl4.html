@@ -3,8 +3,8 @@
 	<head>
 		<meta charset="utf-8">
 		<meta http-equiv="x-ua-compatible" content="ie=edge">
-		<title>Penrose tiles #2</title>
-		<meta name="description" content="A 'sun', with randomly-coloured tiles and including arc paths">
+		<title>Penrose tiles #4</title>
+		<meta name="description" content="A 'sun'">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 
 		<link rel="manifest" href="site.webmanifest">
@@ -21,15 +21,9 @@
 			import { Complex, PenroseP3, BtileS, psi } from './penrose.js';
 
 			(function(el) {
-				// A simple example starting with a BL tile
-
 				const scale = 100;
-				const config = {
-					'draw-arcs': true, 'tile-opacity': 0.6,
-					'random-tile-colours': true,
-					'Aarc-colour': '#f44', 'Carc-colour': '#44f'
-				};
-				const tiling = new PenroseP3(scale, 4, config);
+				const config={'tile-opacity': 0.9, 'stroke-colour': '#800', 'Stile-colour': '#f00', 'Ltile-colour': '#ff0'};
+				const tiling = new PenroseP3(scale*1.1, 4, config);
 
 				const theta = Math.PI / 5;
 				const alpha = Math.cos(theta)
