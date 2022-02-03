@@ -1,4 +1,4 @@
-const randHex = (min, max) => `#${Number(min + parseInt(rand() * (max - min))).toString(16)}`;
+const randHex = (min, max) => `#${Number(min + parseInt(Math.random() * (max - min))).toString(16)}`;
 const line = (first, ...arg) => {
 	const points = arg.map(p => `l${p.real.toFixed(6)},${p.imag.toFixed(6)}`).join(' ');
 	return `m${first.real.toFixed(6)},${first.imag.toFixed(6)} ${points}z`;
@@ -379,7 +379,7 @@ stroke-width: ${stroke_width}; stroke-linejoin: round;">`);
  fill-opacity="${this.config['tile-opacity']}"\
  d="${e.path(draw_rhombuses)}"/>`);
             if (this.config['draw-arcs']) {
-                [arc1_d, arc2_d] = e.arcs(!draw_rhombuses);
+                const [arc1_d, arc2_d] = e.arcs(!draw_rhombuses);
                 svg.push(
                 	`<path fill="none" stroke="${this.config['Aarc-colour']}" d="${arc1_d}" />`,
                 	`<path fill="none" stroke="${this.config['Carc-colour']}" d="${arc2_d}" />`

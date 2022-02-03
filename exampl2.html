@@ -1,0 +1,54 @@
+<!doctype html>
+<html class="no-js" lang="">
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="x-ua-compatible" content="ie=edge">
+		<title>Penrose tiles #2</title>
+		<meta name="description" content="Penrose tiles example 1">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+
+		<link rel="manifest" href="site.webmanifest">
+		<link rel="apple-touch-icon" href="icon.png">
+	</head>
+	<body>
+		<div id="image"></div>
+		<script type="module">
+			import { Complex, PenroseP3, BtileS, psi } from './penrose.js';
+
+			(function(el) {
+				// A simple example starting with a BL tile
+
+				const scale = 100;
+				const config = {
+					'draw-arcs': true, 'tile-opacity': 0.6,
+					'random-tile-colours': true,
+					'Aarc-colour': '#f44', 'Carc-colour': '#44f'
+				};
+				const tiling = new PenroseP3(scale, 4, config);
+
+				const theta = Math.PI / 5;
+				const alpha = Math.cos(theta)
+				const rot = new Complex(Math.cos(theta), Math.sin(theta));
+				const A1 = new Complex(scale, 0);
+				const B = new Complex(0, 0);
+				const C1 = A1.mult(rot);
+				const C2 = C1;
+				const A2 = C1.mult(rot);
+				const A3 = A2;
+				const C3 = A3.mult(rot);
+				const C4 = C3;
+				const A4 = C4.mult(rot);
+				const A5 = A4;
+				const C5 = A1.neg();
+
+				tiling.set_initial_tiles([new BtileS(A1, B, C1), new BtileS(A2, B, C2),
+										  new BtileS(A3, B, C3), new BtileS(A4, B, C4),
+										  new BtileS(A5, B, C5)])
+				tiling.make_tiling();
+				const img = tiling.make_svg();
+				// console.log(img);
+				el.innerHTML = img;
+			})(document.getElementById('image'));
+		</script>
+	</body>
+</html>
