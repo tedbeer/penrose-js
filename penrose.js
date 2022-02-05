@@ -14,7 +14,7 @@ export const psi = (Math.sqrt(5) - 1) / 2;
 export const psi2 = 1 - psi;
 
 export class Complex {
-	constructor(real, imag) {
+	constructor(real, imag = 0) {
 		this.real = real;
 		this.imag = imag;
 	}
